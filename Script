@@ -10,6 +10,8 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local StarterGui = game:GetService("StarterGui")
 local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPlayer = game:GetService("StarterPlayer")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -26,8 +28,8 @@ ScreenGui.Name = "AnomalyHospitalUI"
 local MainFrame = Instance.new("Frame")
 MainFrame.Parent = ScreenGui
 MainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-MainFrame.Size = UDim2.new(0,300,0,410)
-MainFrame.Position = UDim2.new(0.5,-150,0.5,-205)
+MainFrame.Size = UDim2.new(0,300,0,520) -- Expanded size to support new modules
+MainFrame.Position = UDim2.new(0.5,-150,0.5,-260)
 MainFrame.Active = true
 MainFrame.Draggable = true
 
@@ -97,7 +99,6 @@ local function highlightTarget(target, color, tag)
     highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
     highlight.Parent = target
     
-    -- Cleanup tracking marker
     local cleanupMarker = Instance.new("StringValue")
     cleanupMarker.Name = "BMF_ESP_Tag"
     cleanupMarker.Value = tag
@@ -139,7 +140,10 @@ local function createTracer(target, color, tag)
 end
 
 local function createNameTag(target, text, color, tag)
-    if target:FindFirstChild("NameTag") then return end
+    if target:FindFirstChild("NameTag") then 
+        target.NameTag.TextLabel.Text = text
+        return 
+    end
 
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "NameTag"
@@ -174,20 +178,129 @@ local function removeESPByTag(tag)
 end
 
 --------------------------------------------------
--- BUTTONS
+-- NEW MODULES: GOD MODE & AMMO MODIFIER
 --------------------------------------------------
 
+local godModeEnabled = false
+task.spawn(function()
+    local pathsToDestroy = {
+        function() return ReplicatedStorage:FindFirstChild("Util") and ReplicatedStorage.Util:FindFirstChild("Net") and ReplicatedStorage.Util.Net:FindFirstChild("RE/PlayerLostSanity") end,
+        function() return PlayerGui:FindFirstChild("Sanity") end,
+        function() return StarterGui:FindFirstChild("Sanity") end,
+        function() return LocalPlayer:FindFirstChild("PlayerScripts") and LocalPlayer.PlayerScripts:FindFirstChild("UI") and LocalPlayer.PlayerScripts.UI:FindFirstChild("SanityLocal") end,
+        function() return StarterPlayer:FindFirstChild("StarterPlayerScripts") and StarterPlayer.StarterPlayerScripts:FindFirstChild("UI") and StarterPlayer.StarterPlayerScripts.UI:FindFirstChild("SanityLocal") end,
+        function() return PlayerGui:FindFirstChild("DontLookUp") end,
+        function() return LocalPlayer:FindFirstChild("PlayerScripts") and LocalPlayer.PlayerScripts:FindFirstChild("UI") and LocalPlayer.PlayerScripts.UI:FindFirstChild("DontLookUpLocal") end,
+        function() return StarterGui:FindFirstChild("DontLookUp") end,
+        function() return StarterPlayer:FindFirstChild("StarterPlayerScripts") and StarterPlayer.StarterPlayerScripts:FindFirstChild("UI") and StarterPlayer.StarterPlayerScripts.UI:FindFirstChild("DontLookUpLocal") end,
+        function() return PlayerGui:FindFirstChild("Run") end,
+        function() return LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("RunNotif") end,
+        function() return StarterGui:FindFirstChild("Run") end,
+        function() return StarterPlayer:FindFirstChild("StarterCharacterScripts") and StarterPlayer.StarterCharacterScripts:FindFirstChild("RunNotif") end
+    }
+
+    while true do
+        task.wait(0.3)
+        if godModeEnabled then
+            for _, getPath in ipairs(pathsToDestroy) do
+                local success, targetInstance = pcall(getPath)
+                if success and targetInstance then
+                    targetInstance:Destroy()
+                end
+            end
+        end
+    end
+end)
+
+createButton("God Mode (No Sanity): OFF", function(button)
+    godModeEnabled = not godModeEnabled
+    button.Text = godModeEnabled and "God Mode (No Sanity): ON" or "God Mode (No Sanity): OFF"
+    button.TextColor3 = godModeEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+local infiniteAmmoEnabled = false
+task.spawn(function()
+    while true do
+        task.wait(0.1)
+        if infiniteAmmoEnabled then
+            local p = Players.LocalPlayer
+            local items = {}
+            if p:FindFirstChild("Backpack") then
+                for _, v in ipairs(p.Backpack:GetChildren()) do table.insert(items, v) end
+            end
+            if p.Character then
+                for _, v in ipairs(p.Character:GetChildren()) do table.insert(items, v) end
+            end
+
+            for _, item in ipairs(items) do
+                if item:IsA("Tool") and (string.find(string.lower(item.Name), "gun") or item:FindFirstChild("Ammo") or item:FindFirstChild("Clip")) then
+                    -- Scans configuration values or engine attributes dynamically
+                    for _, val in ipairs(item:GetDescendants()) do
+                        if val:IsA("IntValue") or val:IsA("NumberValue") then
+                            if string.find(string.lower(val.Name), "ammo") or string.find(string.lower(val.Name), "clip") or string.find(string.lower(val.Name), "ammo") then
+                                val.Value = 1000
+                            end
+                        end
+                    end
+                    if item:GetAttribute("Ammo") then item:SetAttribute("Ammo", 1000) end
+                    if item:GetAttribute("Clip") then item:SetAttribute("Clip", 1000) end
+                end
+            end
+        end
+    end
+end)
+
+createButton("Give Gun (Unlimited Ammo)", function()
+    infiniteAmmoEnabled = true
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not backpack then return end
+    
+    local SimulatedTool = Instance.new("Tool")
+    SimulatedTool.Name = "Gun (Simulated)"
+    SimulatedTool.RequiresHandle = true
+    
+    local sourceMesh = nil
+    local rsSource = ReplicatedStorage:FindFirstChild("ShopItemModels")
+    
+    if rsSource and rsSource:FindFirstChild("Gun") and rsSource.Gun:FindFirstChild("gun") then
+        sourceMesh = rsSource.Gun.gun:Clone()
+    elseif workspace:FindFirstChild("Misc") and workspace.Misc:FindFirstChild("Gun") and workspace.Misc.Gun:FindFirstChild("Gun") then
+        sourceMesh = workspace.Misc.Gun.Gun:Clone()
+    end
+    
+    if sourceMesh then
+        sourceMesh.Name = "Handle"
+        if sourceMesh:IsA("MeshPart") or sourceMesh:IsA("BasePart") then
+            sourceMesh.CanCollide = false
+            sourceMesh.Anchored = false
+        end
+        sourceMesh.Parent = SimulatedTool
+        
+        -- Generate built-in tracking variables inside the tool container
+        local ammoVal = Instance.new("IntValue")
+        ammoVal.Name = "Ammo"
+        ammoVal.Value = 1000
+        ammoVal.Parent = SimulatedTool
+
+        SimulatedTool.Parent = backpack
+        
+        StarterGui:SetCore("SendNotification", {
+            Title = "Weapon Ready";
+            Text = "Gun item added with unlimited bullet modifications.";
+            Duration = 4;
+        })
+    else
+        warn("Source gun asset path not found in current game instance layout.")
+    end
+end)
+
 --------------------------------------------------
--- Infinite Yield
+-- UTILITY BUTTONS
 --------------------------------------------------
 
 createButton("Infinite Yield", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
 end)
-
---------------------------------------------------
--- Dex Explorer
---------------------------------------------------
 
 createButton("Dex Explorer", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
@@ -227,12 +340,10 @@ end)
 
 createButton("Unlock Camera", function()
     local p = game.Players.LocalPlayer
-
     p.CameraMode = Enum.CameraMode.Classic
     p.CameraMinZoomDistance = 0
     p.CameraMaxZoomDistance = 50
-
-    print("✅ Camera unlocked! You can now zoom out into third-person.")
+    print("✅ Camera unlocked!")
 end)
 
 --------------------------------------------------
@@ -287,9 +398,7 @@ end
 UIS.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.Q and flyEnabled then
         flying = not flying
-        if flying then
-            startFly()
-        end
+        if flying then startFly() end
     end
 end)
 
@@ -309,9 +418,7 @@ end)
 RunService.Stepped:Connect(function()
     if noclip then
         for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
+            if part:IsA("BasePart") then part.CanCollide = false end
         end
     end
 end)
@@ -320,9 +427,7 @@ UIS.InputBegan:Connect(function(input)
     if input.KeyCode == Enum.KeyCode.Q and flyNoclipEnabled then
         noclip = not noclip
         flying = not flying
-        if flying then
-            startFly()
-        end
+        if flying then startFly() end
     end
 end)
 
@@ -336,10 +441,7 @@ createButton("Patient ESP: OFF", function(button)
     patientESPActive = not patientESPActive
     button.Text = patientESPActive and "Patient ESP: ON" or "Patient ESP: OFF"
     button.TextColor3 = patientESPActive and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-    
-    if not patientESPActive then
-        removeESPByTag("PatientSystem")
-    end
+    if not patientESPActive then removeESPByTag("PatientSystem") end
 end)
 
 task.spawn(function()
@@ -351,20 +453,18 @@ task.spawn(function()
                 for _, npc in ipairs(npcsFolder:GetChildren()) do
                     if npc:IsA("Model") and npc:GetAttribute("IsPatient") == true then
                         local isAnomaly = npc:GetAttribute("Skinwalker") == true
+                        local roomNum = npc:GetAttribute("DesignatedRoom") or "Unknown"
                         
                         if isAnomaly then
-                            -- Anomaly Settings
                             local color = Color3.fromRGB(255, 0, 0)
                             highlightTarget(npc, color, "PatientSystem")
                             createTracer(npc, color, "PatientSystem")
-                            createNameTag(npc, "Anomaly", color, "PatientSystem")
+                            createNameTag(npc, "Anomaly [" .. tostring(roomNum) .. "]", color, "PatientSystem")
                         else
-                            -- Normal Patient Settings
                             local color = Color3.fromRGB(0, 255, 0)
-                            local roomNum = npc:GetAttribute("DesignatedRoom") or "Unknown"
                             highlightTarget(npc, color, "PatientSystem")
                             createTracer(npc, color, "PatientSystem")
-                            createNameTag(npc, "Patient [Room " .. tostring(roomNum) .. "]", color, "PatientSystem")
+                            createNameTag(npc, npc.Name .. " [" .. tostring(roomNum) .. "]", color, "PatientSystem")
                         end
                     end
                 end
@@ -374,12 +474,10 @@ task.spawn(function()
 end)
 
 --------------------------------------------------
--- ENTITY ESP
+-- GLOBAL ENTITY ESP
 --------------------------------------------------
 
 local entityESPActive = false
-
--- Colors config matching names directly
 local entityColors = {
     ["Hider"] = Color3.fromRGB(0, 0, 0),
     ["Ghost"] = Color3.fromRGB(128, 128, 128),
@@ -394,25 +492,20 @@ createButton("Entity ESP: OFF", function(button)
     entityESPActive = not entityESPActive
     button.Text = entityESPActive and "Entity ESP: ON" or "Entity ESP: OFF"
     button.TextColor3 = entityESPActive and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-    
-    if not entityESPActive then
-        removeESPByTag("EntitySystem")
-    end
+    if not entityESPActive then removeESPByTag("EntitySystem") end
 end)
 
 task.spawn(function()
     while true do
         task.wait(0.5)
         if entityESPActive then
-            local npcsFolder = workspace:FindFirstChild("NPCs")
-            if npcsFolder then
-                for _, npc in ipairs(npcsFolder:GetChildren()) do
-                    if npc:IsA("Model") and entityColors[npc.Name] then
-                        local color = entityColors[npc.Name]
-                        highlightTarget(npc, color, "EntitySystem")
-                        createTracer(npc, color, "EntitySystem")
-                        createNameTag(npc, npc.Name, color, "EntitySystem")
-                    end
+            -- Modified to parse workspace globally
+            for _, asset in ipairs(workspace:GetDescendants()) do
+                if asset:IsA("Model") and entityColors[asset.Name] then
+                    local color = entityColors[asset.Name]
+                    highlightTarget(asset, color, "EntitySystem")
+                    createTracer(asset, color, "EntitySystem")
+                    createNameTag(asset, asset.Name, color, "EntitySystem")
                 end
             end
         end
