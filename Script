@@ -178,7 +178,7 @@ local function removeESPByTag(tag)
 end
 
 --------------------------------------------------
--- NEW MODULES: GOD MODE & AMMO MODIFIER
+-- MODULES: GOD MODE & AMMO MODIFIER
 --------------------------------------------------
 
 local godModeEnabled = false
@@ -234,10 +234,9 @@ task.spawn(function()
 
             for _, item in ipairs(items) do
                 if item:IsA("Tool") and (string.find(string.lower(item.Name), "gun") or item:FindFirstChild("Ammo") or item:FindFirstChild("Clip")) then
-                    -- Scans configuration values or engine attributes dynamically
                     for _, val in ipairs(item:GetDescendants()) do
                         if val:IsA("IntValue") or val:IsA("NumberValue") then
-                            if string.find(string.lower(val.Name), "ammo") or string.find(string.lower(val.Name), "clip") or string.find(string.lower(val.Name), "ammo") then
+                            if string.find(string.lower(val.Name), "ammo") or string.find(string.lower(val.Name), "clip") then
                                 val.Value = 1000
                             end
                         end
@@ -250,6 +249,7 @@ task.spawn(function()
     end
 end)
 
+-- OVERHAULED GIVE GUN MODULE
 createButton("Give Gun (Unlimited Ammo)", function()
     infiniteAmmoEnabled = true
     local backpack = LocalPlayer:FindFirstChild("Backpack")
@@ -276,17 +276,42 @@ createButton("Give Gun (Unlimited Ammo)", function()
         end
         sourceMesh.Parent = SimulatedTool
         
-        -- Generate built-in tracking variables inside the tool container
         local ammoVal = Instance.new("IntValue")
         ammoVal.Name = "Ammo"
         ammoVal.Value = 1000
         ammoVal.Parent = SimulatedTool
 
+        -- SCRIPTED FUNCTIONALITY: Listen for activation inputs when tool is equipped
+        SimulatedTool.Activated:Connect(function()
+            local mouse = LocalPlayer:GetMouse()
+            local target = mouse.Target
+            
+            -- Visual tracer effect
+            if SimulatedTool:FindFirstChild("Handle") then
+                local flash = Instance.new("SelectionBox")
+                flash.Color3 = Color3.fromRGB(255, 255, 0)
+                flash.Adornee = SimulatedTool.Handle
+                flash.Parent = workspace
+                game:GetService("Debris"):AddItem(flash, 0.05)
+            end
+
+            -- Deal with entities/NPCs if targeted
+            if target and target.Parent then
+                local model = target.Parent
+                if model:IsA("Model") and (model:FindFirstChildOfClass("Humanoid") or model:GetAttribute("IsPatient") == true) then
+                    -- Client-side deletion simulation/anomaly neutralizer
+                    model:Destroy()
+                elseif target.Parent:IsA("Model") and target.Parent.Parent:IsA("Model") then
+                    target.Parent.Parent:Destroy()
+                end
+            end
+        end)
+
         SimulatedTool.Parent = backpack
         
         StarterGui:SetCore("SendNotification", {
             Title = "Weapon Ready";
-            Text = "Gun item added with unlimited bullet modifications.";
+            Text = "Functional Gun added with interaction hooks.";
             Duration = 4;
         })
     else
@@ -417,8 +442,10 @@ end)
 
 RunService.Stepped:Connect(function()
     if noclip then
-        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = false end
+        if LocalPlayer.Character then
+            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
         end
     end
 end)
@@ -499,7 +526,6 @@ task.spawn(function()
     while true do
         task.wait(0.5)
         if entityESPActive then
-            -- Modified to parse workspace globally
             for _, asset in ipairs(workspace:GetDescendants()) do
                 if asset:IsA("Model") and entityColors[asset.Name] then
                     local color = entityColors[asset.Name]
