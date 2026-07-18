@@ -1,0 +1,420 @@
+-- Animal Hospital (Anomaly) Script (By BMF)
+-- UI + Movement + ESP Helpers Only
+
+--------------------------------------------------
+-- SERVICES
+--------------------------------------------------
+
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local StarterGui = game:GetService("StarterGui")
+local Lighting = game:GetService("Lighting")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+--------------------------------------------------
+-- UI SETUP
+--------------------------------------------------
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Name = "AnomalyHospitalUI"
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+MainFrame.Size = UDim2.new(0,300,0,410)
+MainFrame.Position = UDim2.new(0.5,-150,0.5,-205)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local Title = Instance.new("TextLabel")
+Title.Parent = MainFrame
+Title.Text = "Animal Hospital (Anomaly) By BMF"
+Title.Size = UDim2.new(1,0,0,30)
+Title.BackgroundColor3 = Color3.fromRGB(45,45,45)
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 18
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = MainFrame
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+--------------------------------------------------
+-- TOGGLE UI (DELETE KEY)
+--------------------------------------------------
+
+UIS.InputBegan:Connect(function(input, gp)
+    if not gp and input.KeyCode == Enum.KeyCode.Delete then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
+
+StarterGui:SetCore("SendNotification",{
+    Title="Animal Hospital Loaded!",
+    Text="Anomaly detection ready.",
+    Duration=8
+})
+
+--------------------------------------------------
+-- BUTTON CREATOR
+--------------------------------------------------
+
+local function createButton(name, callback)
+    local Button = Instance.new("TextButton")
+    Button.Parent = MainFrame
+    Button.Text = name
+    Button.Size = UDim2.new(1,0,0,30)
+    Button.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    Button.TextColor3 = Color3.fromRGB(255,255,255)
+    Button.Font = Enum.Font.SourceSans
+    Button.TextSize = 16
+
+    Button.MouseButton1Click:Connect(function()
+        pcall(function()
+            callback(Button)
+        end)
+    end)
+end
+
+--------------------------------------------------
+-- ESP HELPERS (FULL SYSTEM)
+--------------------------------------------------
+
+local function highlightTarget(target, color, tag)
+    if target:FindFirstChild("BMF_Highlight") then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "BMF_Highlight"
+    highlight.Adornee = target
+    highlight.FillColor = color
+    highlight.OutlineColor = Color3.fromRGB(255,255,255)
+    highlight.FillTransparency = 0.5
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = target
+    
+    -- Cleanup tracking marker
+    local cleanupMarker = Instance.new("StringValue")
+    cleanupMarker.Name = "BMF_ESP_Tag"
+    cleanupMarker.Value = tag
+    cleanupMarker.Parent = target
+end
+
+local function createTracer(target, color, tag)
+    if target:FindFirstChild("BMF_Tracer_Active_" .. tag) then return end
+    local marker = Instance.new("Folder")
+    marker.Name = "BMF_Tracer_Active_" .. tag
+    marker.Parent = target
+
+    local camera = workspace.CurrentCamera
+    local line = Drawing.new("Line")
+
+    line.Visible = true
+    line.Color = color
+    line.Thickness = 2
+
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if target and target:IsDescendantOf(workspace) and (target:FindFirstChild("HumanoidRootPart") or target:FindFirstChildWhichIsA("BasePart")) then
+            local root = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChildWhichIsA("BasePart")
+            local pos, onScreen = camera:WorldToViewportPoint(root.Position)
+
+            if onScreen then
+                line.From = Vector2.new(camera.ViewportSize.X/2, camera.ViewportSize.Y)
+                line.To = Vector2.new(pos.X, pos.Y)
+                line.Visible = true
+            else
+                line.Visible = false
+            end
+        else
+            line.Visible = false
+            connection:Disconnect()
+            line:Remove()
+        end
+    end)
+end
+
+local function createNameTag(target, text, color, tag)
+    if target:FindFirstChild("NameTag") then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "NameTag"
+    billboard.Size = UDim2.new(0,200,0,50)
+    billboard.StudsOffset = Vector3.new(0,3,0)
+    billboard.AlwaysOnTop = true
+    billboard.MaxDistance = 500
+    billboard.Parent = target
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1,0,1,0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = color
+    label.TextStrokeTransparency = 0
+    label.TextScaled = true
+    label.Font = Enum.Font.SourceSansBold
+    label.Parent = billboard
+end
+
+local function removeESPByTag(tag)
+    for _, npc in ipairs(workspace:GetDescendants()) do
+        local marker = npc:FindFirstChild("BMF_ESP_Tag")
+        if marker and marker.Value == tag then
+            if npc:FindFirstChild("BMF_Highlight") then npc.BMF_Highlight:Destroy() end
+            if npc:FindFirstChild("NameTag") then npc.NameTag:Destroy() end
+            local tracerMarker = npc:FindFirstChild("BMF_Tracer_Active_" .. tag)
+            if tracerMarker then tracerMarker:Destroy() end
+            marker:Destroy()
+        end
+    end
+end
+
+--------------------------------------------------
+-- BUTTONS
+--------------------------------------------------
+
+--------------------------------------------------
+-- Infinite Yield
+--------------------------------------------------
+
+createButton("Infinite Yield", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+end)
+
+--------------------------------------------------
+-- Dex Explorer
+--------------------------------------------------
+
+createButton("Dex Explorer", function()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
+end)
+
+--------------------------------------------------
+-- FULL BRIGHT
+--------------------------------------------------
+
+local fullBrightEnabled = false
+local brightConnection
+
+createButton("Full Bright: OFF", function(button)
+    fullBrightEnabled = not fullBrightEnabled
+    button.Text = fullBrightEnabled and "Full Bright: ON" or "Full Bright: OFF"
+    button.TextColor3 = fullBrightEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+
+    if fullBrightEnabled then
+        brightConnection = RunService.RenderStepped:Connect(function()
+            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+            Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+            Lighting.Brightness = 2
+            Lighting.ClockTime = 14
+        end)
+    else
+        if brightConnection then
+            brightConnection:Disconnect()
+        end
+        Lighting.Brightness = 1
+        Lighting.ClockTime = 12
+    end
+end)
+
+--------------------------------------------------
+-- UNLOCK CAMERA
+--------------------------------------------------
+
+createButton("Unlock Camera", function()
+    local p = game.Players.LocalPlayer
+
+    p.CameraMode = Enum.CameraMode.Classic
+    p.CameraMinZoomDistance = 0
+    p.CameraMaxZoomDistance = 50
+
+    print("✅ Camera unlocked! You can now zoom out into third-person.")
+end)
+
+--------------------------------------------------
+-- Q TO FLY (Piggy Style)
+--------------------------------------------------
+
+local flyEnabled = false
+local flying = false
+
+createButton("Q to Fly: OFF", function(button)
+    flyEnabled = not flyEnabled
+    button.Text = flyEnabled and "Q to Fly: ON" or "Q to Fly: OFF"
+    button.TextColor3 = flyEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+local function startFly()
+    flying = true
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(1e6,1e6,1e6)
+    bv.Parent = hrp
+
+    local bg = Instance.new("BodyGyro")
+    bg.MaxTorque = Vector3.new(1e6,1e6,1e6)
+    bg.Parent = hrp
+
+    while flying do
+        local cam = workspace.CurrentCamera
+        bg.CFrame = cam.CFrame
+
+        local move = Vector3.new()
+        if UIS:IsKeyDown(Enum.KeyCode.W) then move = move + cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.S) then move = move - cam.CFrame.LookVector end
+        if UIS:IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.D) then move = move + cam.CFrame.RightVector end
+        if UIS:IsKeyDown(Enum.KeyCode.Space) then move = move + Vector3.new(0,1,0) end
+        if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then move = move - Vector3.new(0,1,0) end
+
+        bv.Velocity = move * 50
+        task.wait()
+    end
+
+    bv:Destroy()
+    bg:Destroy()
+end
+
+UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Q and flyEnabled then
+        flying = not flying
+        if flying then
+            startFly()
+        end
+    end
+end)
+
+--------------------------------------------------
+-- Q TO FLY + NOCLIP
+--------------------------------------------------
+
+local flyNoclipEnabled = false
+local noclip = false
+
+createButton("Q Fly + Noclip: OFF", function(button)
+    flyNoclipEnabled = not flyNoclipEnabled
+    button.Text = flyNoclipEnabled and "Q Fly + Noclip: ON" or "Q Fly + Noclip: OFF"
+    button.TextColor3 = flyNoclipEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+RunService.Stepped:Connect(function()
+    if noclip then
+        for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Q and flyNoclipEnabled then
+        noclip = not noclip
+        flying = not flying
+        if flying then
+            startFly()
+        end
+    end
+end)
+
+--------------------------------------------------
+-- PATIENT ESP
+--------------------------------------------------
+
+local patientESPActive = false
+
+createButton("Patient ESP: OFF", function(button)
+    patientESPActive = not patientESPActive
+    button.Text = patientESPActive and "Patient ESP: ON" or "Patient ESP: OFF"
+    button.TextColor3 = patientESPActive and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+    
+    if not patientESPActive then
+        removeESPByTag("PatientSystem")
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if patientESPActive then
+            local npcsFolder = workspace:FindFirstChild("NPCs")
+            if npcsFolder then
+                for _, npc in ipairs(npcsFolder:GetChildren()) do
+                    if npc:IsA("Model") and npc:GetAttribute("IsPatient") == true then
+                        local isAnomaly = npc:GetAttribute("Skinwalker") == true
+                        
+                        if isAnomaly then
+                            -- Anomaly Settings
+                            local color = Color3.fromRGB(255, 0, 0)
+                            highlightTarget(npc, color, "PatientSystem")
+                            createTracer(npc, color, "PatientSystem")
+                            createNameTag(npc, "Anomaly", color, "PatientSystem")
+                        else
+                            -- Normal Patient Settings
+                            local color = Color3.fromRGB(0, 255, 0)
+                            local roomNum = npc:GetAttribute("DesignatedRoom") or "Unknown"
+                            highlightTarget(npc, color, "PatientSystem")
+                            createTracer(npc, color, "PatientSystem")
+                            createNameTag(npc, "Patient [Room " .. tostring(roomNum) .. "]", color, "PatientSystem")
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+--------------------------------------------------
+-- ENTITY ESP
+--------------------------------------------------
+
+local entityESPActive = false
+
+-- Colors config matching names directly
+local entityColors = {
+    ["Hider"] = Color3.fromRGB(0, 0, 0),
+    ["Ghost"] = Color3.fromRGB(128, 128, 128),
+    ["EyeMass"] = Color3.fromRGB(255, 0, 0),
+    ["MonsterBed"] = Color3.fromRGB(0, 0, 0),
+    ["MonsterBedLarge"] = Color3.fromRGB(0, 0, 0),
+    ["Shadow"] = Color3.fromRGB(0, 0, 0),
+    ["TallMonster"] = Color3.fromRGB(255, 255, 255)
+}
+
+createButton("Entity ESP: OFF", function(button)
+    entityESPActive = not entityESPActive
+    button.Text = entityESPActive and "Entity ESP: ON" or "Entity ESP: OFF"
+    button.TextColor3 = entityESPActive and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+    
+    if not entityESPActive then
+        removeESPByTag("EntitySystem")
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.5)
+        if entityESPActive then
+            local npcsFolder = workspace:FindFirstChild("NPCs")
+            if npcsFolder then
+                for _, npc in ipairs(npcsFolder:GetChildren()) do
+                    if npc:IsA("Model") and entityColors[npc.Name] then
+                        local color = entityColors[npc.Name]
+                        highlightTarget(npc, color, "EntitySystem")
+                        createTracer(npc, color, "EntitySystem")
+                        createNameTag(npc, npc.Name, color, "EntitySystem")
+                    end
+                end
+            end
+        end
+    end
+end)
