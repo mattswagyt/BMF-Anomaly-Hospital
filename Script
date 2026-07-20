@@ -371,6 +371,28 @@ createButton("Unlock Camera", function()
     print("✅ Camera unlocked!")
 end)
 
+-- Shift to Run
+local shiftToRunActive = false
+
+createButton("Shift to Run: OFF", function(button)
+	shiftToRunActive = not shiftToRunActive
+	button.Text = shiftToRunActive and "Shift to Run: ON" or "Shift to Run: OFF"
+	button.TextColor3 = shiftToRunActive and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+
+	local player = Players.LocalPlayer
+	local character = player.Character or player.CharacterAdded:Wait()
+	local humanoid = character:WaitForChild("Humanoid")
+
+	local speedBoost = 30
+	local normalSpeed = 16
+
+	if shiftToRunActive then
+		humanoid.WalkSpeed = speedBoost
+	else
+		humanoid.WalkSpeed = normalSpeed
+	end
+end)
+
 --------------------------------------------------
 -- Q TO FLY (Piggy Style)
 --------------------------------------------------
@@ -534,6 +556,80 @@ task.spawn(function()
                     createNameTag(asset, asset.Name, color, "EntitySystem")
                 end
             end
+        end
+    end
+end)
+
+--------------------------------------------------
+-- PLAYER ESP
+--------------------------------------------------
+
+local playerESPActive = false
+
+createButton("Player ESP: OFF", function(button)
+    playerESPActive = not playerESPActive
+    button.Text = playerESPActive and "Player ESP: ON" or "Player ESP: OFF"
+    button.TextColor3 = playerESPActive and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+
+    if not playerESPActive then
+        removeESPByTag("PlayerESP")
+        return
+    end
+
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
+    local ESP_COLOR = Color3.fromRGB(0, 255, 0) -- Green
+
+    -- Function to ESP a single character model
+    local function applyPlayerESP(character, player)
+        if not character or not playerESPActive then return end
+        if character:FindFirstChild("HumanoidRootPart") == nil then return end
+
+        -- Prevent duplicate ESP
+        if character:FindFirstChild("PlayerESP_Highlight") then return end
+
+        -- Highlight
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "PlayerESP_Highlight"
+        highlight.Adornee = character
+        highlight.FillColor = ESP_COLOR
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Parent = character
+
+        -- Tracer
+        createTracer(character, ESP_COLOR, "PlayerESP")
+
+        -- Name tag
+        createNameTag(character, player.Name, ESP_COLOR, "PlayerESP")
+    end
+
+    -- Apply ESP for all current players
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            if player.Character then
+                applyPlayerESP(player.Character, player)
+            end
+        end
+    end
+
+    -- When a new character spawns, apply ESP again
+    Players.PlayerAdded:Connect(function(player)
+        player.CharacterAdded:Connect(function(char)
+            task.wait(1)
+            applyPlayerESP(char, player)
+        end)
+    end)
+
+    -- Also detect respawns for already-joined players
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            player.CharacterAdded:Connect(function(char)
+                task.wait(1)
+                applyPlayerESP(char, player)
+            end)
         end
     end
 end)
