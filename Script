@@ -212,12 +212,6 @@ task.spawn(function()
     end
 end)
 
-createButton("God Mode (No Sanity): OFF", function(button)
-    godModeEnabled = not godModeEnabled
-    button.Text = godModeEnabled and "God Mode (No Sanity): ON" or "God Mode (No Sanity): OFF"
-    button.TextColor3 = godModeEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-end)
-
 local infiniteAmmoEnabled = false
 task.spawn(function()
     while true do
@@ -249,76 +243,6 @@ task.spawn(function()
     end
 end)
 
--- OVERHAULED GIVE GUN MODULE
-createButton("Give Gun (Unlimited Ammo)", function()
-    infiniteAmmoEnabled = true
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    if not backpack then return end
-    
-    local SimulatedTool = Instance.new("Tool")
-    SimulatedTool.Name = "Gun (Simulated)"
-    SimulatedTool.RequiresHandle = true
-    
-    local sourceMesh = nil
-    local rsSource = ReplicatedStorage:FindFirstChild("ShopItemModels")
-    
-    if rsSource and rsSource:FindFirstChild("Gun") and rsSource.Gun:FindFirstChild("gun") then
-        sourceMesh = rsSource.Gun.gun:Clone()
-    elseif workspace:FindFirstChild("Misc") and workspace.Misc:FindFirstChild("Gun") and workspace.Misc.Gun:FindFirstChild("Gun") then
-        sourceMesh = workspace.Misc.Gun.Gun:Clone()
-    end
-    
-    if sourceMesh then
-        sourceMesh.Name = "Handle"
-        if sourceMesh:IsA("MeshPart") or sourceMesh:IsA("BasePart") then
-            sourceMesh.CanCollide = false
-            sourceMesh.Anchored = false
-        end
-        sourceMesh.Parent = SimulatedTool
-        
-        local ammoVal = Instance.new("IntValue")
-        ammoVal.Name = "Ammo"
-        ammoVal.Value = 1000
-        ammoVal.Parent = SimulatedTool
-
-        -- SCRIPTED FUNCTIONALITY: Listen for activation inputs when tool is equipped
-        SimulatedTool.Activated:Connect(function()
-            local mouse = LocalPlayer:GetMouse()
-            local target = mouse.Target
-            
-            -- Visual tracer effect
-            if SimulatedTool:FindFirstChild("Handle") then
-                local flash = Instance.new("SelectionBox")
-                flash.Color3 = Color3.fromRGB(255, 255, 0)
-                flash.Adornee = SimulatedTool.Handle
-                flash.Parent = workspace
-                game:GetService("Debris"):AddItem(flash, 0.05)
-            end
-
-            -- Deal with entities/NPCs if targeted
-            if target and target.Parent then
-                local model = target.Parent
-                if model:IsA("Model") and (model:FindFirstChildOfClass("Humanoid") or model:GetAttribute("IsPatient") == true) then
-                    -- Client-side deletion simulation/anomaly neutralizer
-                    model:Destroy()
-                elseif target.Parent:IsA("Model") and target.Parent.Parent:IsA("Model") then
-                    target.Parent.Parent:Destroy()
-                end
-            end
-        end)
-
-        SimulatedTool.Parent = backpack
-        
-        StarterGui:SetCore("SendNotification", {
-            Title = "Weapon Ready";
-            Text = "Functional Gun added with interaction hooks.";
-            Duration = 4;
-        })
-    else
-        warn("Source gun asset path not found in current game instance layout.")
-    end
-end)
-
 --------------------------------------------------
 -- UTILITY BUTTONS
 --------------------------------------------------
@@ -329,6 +253,16 @@ end)
 
 createButton("Dex Explorer", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
+end)
+
+--------------------------------------------------
+-- GOD MODE
+--------------------------------------------------
+
+createButton("God Mode (No Sanity): OFF", function(button)
+    godModeEnabled = not godModeEnabled
+    button.Text = godModeEnabled and "God Mode (No Sanity): ON" or "God Mode (No Sanity): OFF"
+    button.TextColor3 = godModeEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
 
 --------------------------------------------------
@@ -371,6 +305,10 @@ createButton("Unlock Camera", function()
     print("✅ Camera unlocked!")
 end)
 
+--------------------------------------------------
+-- SHIFT TO RUN
+--------------------------------------------------
+
 -- Shift to Run
 local shiftToRunActive = false
 
@@ -392,6 +330,76 @@ createButton("Shift to Run: OFF", function(button)
 		humanoid.WalkSpeed = normalSpeed
 	end
 end)
+
+--------------------------------------------------
+-- GIVE GUN (UNLIMITED AMMO)
+--------------------------------------------------
+
+-- OVERHAULED GIVE GUN MODULE
+createButton("Give Gun (Functional + Unlimited Ammo)", function()
+    infiniteAmmoEnabled = true
+
+    local backpack = LocalPlayer:FindFirstChild("Backpack")
+    if not backpack then return end
+
+    -- Try to locate the REAL gun model
+    local realGun
+    local sources = {
+        ReplicatedStorage:FindFirstChild("ShopItemModels"),
+        workspace:FindFirstChild("Misc"),
+        ReplicatedStorage:FindFirstChild("Items"),
+        ReplicatedStorage:FindFirstChild("Tools")
+    }
+
+    for _, src in ipairs(sources) do
+        if src then
+            for _, item in ipairs(src:GetDescendants()) do
+                if item:IsA("Tool") and string.lower(item.Name):find("gun") then
+                    realGun = item
+                    break
+                end
+            end
+        end
+        if realGun then break end
+    end
+
+    if not realGun then
+        StarterGui:SetCore("SendNotification", {
+            Title = "Gun Error",
+            Text = "Could not locate real gun model.",
+            Duration = 5
+        })
+        return
+    end
+
+    -- Clone the REAL gun
+    local clonedGun = realGun:Clone()
+    clonedGun.Parent = backpack
+
+    -- Force unlimited ammo on all value types
+    for _, obj in ipairs(clonedGun:GetDescendants()) do
+        if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+            if string.lower(obj.Name):find("ammo") or string.lower(obj.Name):find("clip") then
+                obj.Value = 9999
+            end
+        end
+    end
+
+    -- Attribute-based ammo
+    if clonedGun:GetAttribute("Ammo") then clonedGun:SetAttribute("Ammo", 9999) end
+    if clonedGun:GetAttribute("Clip") then clonedGun:SetAttribute("Clip", 9999) end
+
+    -- Auto-equip
+    task.wait(0.2)
+    LocalPlayer.Character.Humanoid:EquipTool(clonedGun)
+
+    StarterGui:SetCore("SendNotification", {
+        Title = "Weapon Ready",
+        Text = "Functional gun added with unlimited ammo.",
+        Duration = 4
+    })
+end)
+
 
 --------------------------------------------------
 -- Q TO FLY (Piggy Style)
@@ -633,3 +641,49 @@ createButton("Player ESP: OFF", function(button)
         end
     end
 end)
+
+--------------------------------------------------
+-- UNLIMITED INVENTORY CAPACITY
+--------------------------------------------------
+
+local unlimitedInventory = false
+
+createButton("Unlimited Inventory Capacity: OFF", function(button)
+    unlimitedInventory = not unlimitedInventory
+    button.Text = unlimitedInventory and "Unlimited Inventory Capacity: ON" or "Unlimited Inventory Capacity: OFF"
+    button.TextColor3 = unlimitedInventory and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.2)
+
+        if unlimitedInventory then
+            local p = LocalPlayer
+
+            -- Remove inventory UI warnings
+            local invUI = p.PlayerGui:FindFirstChild("Inventory")
+            if invUI then invUI:Destroy() end
+
+            -- Prevent client-side item dropping
+            if p.Character then
+                for _, tool in ipairs(p.Character:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        tool.CanBeDropped = false
+                    end
+                end
+            end
+
+            -- Prevent Backpack capacity checks
+            local backpack = p:FindFirstChild("Backpack")
+            if backpack then
+                for _, tool in ipairs(backpack:GetChildren()) do
+                    if tool:IsA("Tool") then
+                        tool.CanBeDropped = false
+                    end
+                end
+            end
+        end
+    end
+end)
+
