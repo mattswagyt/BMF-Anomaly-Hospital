@@ -342,59 +342,80 @@ createButton("Give Gun (Functional + Unlimited Ammo)", function()
     local backpack = LocalPlayer:FindFirstChild("Backpack")
     if not backpack then return end
 
-    -- Try to locate the REAL gun model
-    local realGun
-    local sources = {
-        ReplicatedStorage:FindFirstChild("ShopItemModels"),
-        workspace:FindFirstChild("Misc"),
-        ReplicatedStorage:FindFirstChild("Items"),
-        ReplicatedStorage:FindFirstChild("Tools")
-    }
-
-    for _, src in ipairs(sources) do
-        if src then
-            for _, item in ipairs(src:GetDescendants()) do
-                if item:IsA("Tool") and string.lower(item.Name):find("gun") then
-                    realGun = item
-                    break
-                end
-            end
-        end
-        if realGun then break end
-    end
-
-    if not realGun then
+    -- Locate the REAL gun mesh
+    local gunModel = ReplicatedStorage:FindFirstChild("ShopItemModels")
+    if not gunModel or not gunModel:FindFirstChild("Gun") or not gunModel.Gun:FindFirstChild("gun") then
         StarterGui:SetCore("SendNotification", {
-            Title = "Gun Error",
-            Text = "Could not locate real gun model.",
+            Title = "Gun Module Not Found",
+            Text = "Could not locate ReplicatedStorage.ShopItemModels.Gun.gun",
             Duration = 5
         })
         return
     end
 
-    -- Clone the REAL gun
-    local clonedGun = realGun:Clone()
-    clonedGun.Parent = backpack
+    local mesh = gunModel.Gun.gun:Clone()
 
-    -- Force unlimited ammo on all value types
-    for _, obj in ipairs(clonedGun:GetDescendants()) do
-        if obj:IsA("IntValue") or obj:IsA("NumberValue") then
-            if string.lower(obj.Name):find("ammo") or string.lower(obj.Name):find("clip") then
-                obj.Value = 9999
+    -- Build a REAL Tool
+    local tool = Instance.new("Tool")
+    tool.Name = "Gun"
+    tool.RequiresHandle = true
+
+    -- Prepare Handle
+    mesh.Name = "Handle"
+    mesh.CanCollide = false
+    mesh.Anchored = false
+    mesh.Parent = tool
+
+    -- Add ammo values
+    local ammoVal = Instance.new("IntValue")
+    ammoVal.Name = "Ammo"
+    ammoVal.Value = 9999
+    ammoVal.Parent = tool
+
+    local clipVal = Instance.new("IntValue")
+    clipVal.Name = "Clip"
+    clipVal.Value = 9999
+    clipVal.Parent = tool
+
+    -- Add attributes (some games check these)
+    tool:SetAttribute("Ammo", 9999)
+    tool:SetAttribute("Clip", 9999)
+
+    -- Add firing logic
+    tool.Activated:Connect(function()
+        local mouse = LocalPlayer:GetMouse()
+        local target = mouse.Target
+
+        -- Muzzle flash effect
+        local flash = Instance.new("SelectionBox")
+        flash.Color3 = Color3.fromRGB(255, 255, 0)
+        flash.Adornee = mesh
+        flash.Parent = workspace
+        game:GetService("Debris"):AddItem(flash, 0.05)
+
+        -- Delete anomalies / NPCs client-side
+        if target and target.Parent then
+            local model = target.Parent
+
+            if model:IsA("Model") and (model:FindFirstChildOfClass("Humanoid") or model:GetAttribute("IsPatient") == true) then
+                model:Destroy()
+            elseif target.Parent:IsA("Model") and target.Parent.Parent:IsA("Model") then
+                target.Parent.Parent:Destroy()
             end
         end
-    end
+    end)
 
-    -- Attribute-based ammo
-    if clonedGun:GetAttribute("Ammo") then clonedGun:SetAttribute("Ammo", 9999) end
-    if clonedGun:GetAttribute("Clip") then clonedGun:SetAttribute("Clip", 9999) end
+    -- Give gun to player
+    tool.Parent = backpack
 
     -- Auto-equip
-    task.wait(0.2)
-    LocalPlayer.Character.Humanoid:EquipTool(clonedGun)
+    task.wait(0.1)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:EquipTool(tool)
+    end
 
     StarterGui:SetCore("SendNotification", {
-        Title = "Weapon Ready",
+        Title = "Gun Ready",
         Text = "Functional gun added with unlimited ammo.",
         Duration = 4
     })
