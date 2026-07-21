@@ -708,3 +708,91 @@ task.spawn(function()
     end
 end)
 
+--------------------------------------------------
+-- NO DOORS
+--------------------------------------------------
+
+createButton("No Doors: OFF", function(button)
+    local noDoorsEnabled = not (button.Text == "No Doors: ON")
+    button.Text = noDoorsEnabled and "No Doors: ON" or "No Doors: OFF"
+    button.TextColor3 = noDoorsEnabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+
+    if not noDoorsEnabled then return end
+
+    --------------------------------------------------
+    -- STATIC PATHS
+    --------------------------------------------------
+
+    local staticPaths = {
+        workspace:FindFirstChild("Doors"),
+        workspace:FindFirstChild("Misc") and workspace.Misc:FindFirstChild("MainDoor"),
+        workspace:FindFirstChild("Misc") and workspace.Misc:FindFirstChild("EmergencyMainDoorClosed"),
+        workspace:FindFirstChild("Misc") and workspace.Misc:FindFirstChild("StaffDoor"),
+        ReplicatedStorage:FindFirstChild("Misc") and ReplicatedStorage.Misc:FindFirstChild("StaffDoorClosed"),
+        workspace:FindFirstChild("Misc") and workspace.Misc:FindFirstChild("ShopWindow"),
+        workspace:FindFirstChild("Misc") and workspace.Misc:FindFirstChild("ShopShutters")
+    }
+
+    for _, obj in ipairs(staticPaths) do
+        if obj then
+            obj:Destroy()
+        end
+    end
+
+    --------------------------------------------------
+    -- DYNAMIC MODEL SCAN
+    -- Find ANY model named "Model" that contains:
+    -- Model > MainDoor > Puerta > Door
+    --------------------------------------------------
+
+    for _, child in ipairs(workspace:GetChildren()) do
+        if child:IsA("Model") and child.Name == "Model" then
+            local mainDoor = child:FindFirstChild("MainDoor")
+            if mainDoor and mainDoor:IsA("Model") then
+                local puerta = mainDoor:FindFirstChild("Puerta")
+                if puerta and puerta:IsA("Model") then
+                    local door = puerta:FindFirstChild("Door")
+                    if door and door:IsA("BasePart") then
+                        -- This is the correct dynamic door model
+                        child:Destroy()
+                    end
+                end
+            end
+        end
+    end
+
+    --------------------------------------------------
+    -- OPTIONAL: Destroy doors added later
+    --------------------------------------------------
+
+    task.spawn(function()
+        while noDoorsEnabled do
+            task.wait(1)
+
+            -- Re-run static paths
+            for _, obj in ipairs(staticPaths) do
+                if obj and obj.Parent then
+                    obj:Destroy()
+                end
+            end
+
+            -- Re-run dynamic scan
+            for _, child in ipairs(workspace:GetChildren()) do
+                if child:IsA("Model") and child.Name == "Model" then
+                    local mainDoor = child:FindFirstChild("MainDoor")
+                    if mainDoor and mainDoor:IsA("Model") then
+                        local puerta = mainDoor:FindFirstChild("Puerta")
+                        if puerta and puerta:IsA("Model") then
+                            local door = puerta:FindFirstChild("Door")
+                            if door and door:IsA("BasePart") then
+                                child:Destroy()
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+
