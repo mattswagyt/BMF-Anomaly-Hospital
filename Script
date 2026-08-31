@@ -336,89 +336,39 @@ end)
 --------------------------------------------------
 
 -- OVERHAULED GIVE GUN MODULE
-createButton("Give Gun (Functional + Unlimited Ammo)", function()
-    infiniteAmmoEnabled = true
-
-    local backpack = LocalPlayer:FindFirstChild("Backpack")
-    if not backpack then return end
-
-    -- Locate the REAL gun mesh
-    local gunModel = ReplicatedStorage:FindFirstChild("ShopItemModels")
-    if not gunModel or not gunModel:FindFirstChild("Gun") or not gunModel.Gun:FindFirstChild("gun") then
-        StarterGui:SetCore("SendNotification", {
-            Title = "Gun Module Not Found",
-            Text = "Could not locate ReplicatedStorage.ShopItemModels.Gun.gun",
-            Duration = 5
-        })
+createButton("Give REAL Gun (Server-Sided)", function()
+    local adminPanel = ReplicatedStorage:FindFirstChild("Admin Panel")
+    if not adminPanel then
+        warn("Admin Panel not found in ReplicatedStorage.")
         return
     end
 
-    local mesh = gunModel.Gun.gun:Clone()
-
-    -- Build a REAL Tool
-    local tool = Instance.new("Tool")
-    tool.Name = "Gun"
-    tool.RequiresHandle = true
-
-    -- Prepare Handle
-    mesh.Name = "Handle"
-    mesh.CanCollide = false
-    mesh.Anchored = false
-    mesh.Parent = tool
-
-    -- Add ammo values
-    local ammoVal = Instance.new("IntValue")
-    ammoVal.Name = "Ammo"
-    ammoVal.Value = 9999
-    ammoVal.Parent = tool
-
-    local clipVal = Instance.new("IntValue")
-    clipVal.Name = "Clip"
-    clipVal.Value = 9999
-    clipVal.Parent = tool
-
-    -- Add attributes (some games check these)
-    tool:SetAttribute("Ammo", 9999)
-    tool:SetAttribute("Clip", 9999)
-
-    -- Add firing logic
-    tool.Activated:Connect(function()
-        local mouse = LocalPlayer:GetMouse()
-        local target = mouse.Target
-
-        -- Muzzle flash effect
-        local flash = Instance.new("SelectionBox")
-        flash.Color3 = Color3.fromRGB(255, 255, 0)
-        flash.Adornee = mesh
-        flash.Parent = workspace
-        game:GetService("Debris"):AddItem(flash, 0.05)
-
-        -- Delete anomalies / NPCs client-side
-        if target and target.Parent then
-            local model = target.Parent
-
-            if model:IsA("Model") and (model:FindFirstChildOfClass("Humanoid") or model:GetAttribute("IsPatient") == true) then
-                model:Destroy()
-            elseif target.Parent:IsA("Model") and target.Parent.Parent:IsA("Model") then
-                target.Parent.Parent:Destroy()
-            end
-        end
-    end)
-
-    -- Give gun to player
-    tool.Parent = backpack
-
-    -- Auto-equip
-    task.wait(0.1)
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid:EquipTool(tool)
+    local giveToolFolder = adminPanel:FindFirstChild("Give tool")
+    if not giveToolFolder then
+        warn("Give tool folder not found inside Admin Panel.")
+        return
     end
 
-    StarterGui:SetCore("SendNotification", {
-        Title = "Gun Ready",
-        Text = "Functional gun added with unlimited ammo.",
-        Duration = 4
-    })
+    local giveGunRemote = giveToolFolder:FindFirstChild("Gun")
+    if not giveGunRemote or not giveGunRemote:IsA("RemoteFunction") then
+        warn("Gun RemoteFunction not found inside Give tool.")
+        return
+    end
+
+    -- Call the REAL server-side gun giver
+    local success, result = pcall(function()
+        return giveGunRemote:InvokeServer()
+    end)
+
+    if success then
+        StarterGui:SetCore("SendNotification", {
+            Title = "REAL Gun Granted",
+            Text = "You now have the fully functional gun.",
+            Duration = 5
+        })
+    else
+        warn("Failed to invoke Gun RemoteFunction:", result)
+    end
 end)
 
 
